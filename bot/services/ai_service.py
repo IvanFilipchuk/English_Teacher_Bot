@@ -1,74 +1,70 @@
+import openai
 import json
-
-from huggingface_hub import InferenceClient
+import logging
+from typing import Optional
 from config.config import Config
-import re
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
 
 class AIService:
     def __init__(self):
-        try:
-            self.client = InferenceClient(
-                model=Config.MODEL_NAME,
-                token=Config.HF_API_TOKEN
-            )
-        except Exception as e:
-            print(f"Failed to initialize AI client: {str(e)}")
-            self.client = None
+        self.client = openai.AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
+        self.model = Config.MODEL_NAME
+        self.max_tokens = 150
+        self.temperature = 0.3
+        logger.info("AI Service initialized with model: %s", self.model)
 
     async def check_sentence(self, word: str, sentence: str) -> dict:
-        if not self.client:
-            return {
-                "is_correct": False,
-                "feedback": "AI service is currently unavailable",
-                "correction": sentence,
-                "error": "AI service offline"
-            }
-
         try:
-            prompt = (
-                f"Correct this English sentence using the word '{word}': '{sentence}'.\n"
-                "Provide response in JSON format with these fields:\n"
-                "- is_correct (boolean)\n"
-                "- correction (string)\n"
-                "- explanation (string)\n\n"
-                "Example response:\n"
-                '{"is_correct": false, "correction": "She likes running", "explanation": "Use third person singular form"}'
+            start_time = datetime.now()
+            response = await self._get_ai_correction(word, sentence)
+            result = self._parse_response(response, sentence)
+
+            logger.info(
+                "AI correction took %.2fs | Word: %s",
+                (datetime.now() - start_time).total_seconds(),
+                word
             )
-
-            response = self.client.text_generation(
-                prompt,
-                max_new_tokens=200,
-                temperature=0.3
-            ).strip()
-
-            # Parse the response (add error handling)
-            try:
-                if response.startswith('{') and response.endswith('}'):
-                    result = json.loads(response)
-                else:
-                    # Fallback for malformed response
-                    result = {
-                        "is_correct": False,
-                        "correction": sentence,
-                        "explanation": "Could not parse AI response"
-                    }
-            except json.JSONDecodeError:
-                result = {
-                    "is_correct": False,
-                    "correction": sentence,
-                    "explanation": "AI returned invalid response"
-                }
-
-            return {
-                "is_correct": result.get("is_correct", False),
-                "feedback": result.get("explanation", "No feedback provided"),
-                "correction": result.get("correction", sentence)
-            }
-
+            return result
         except Exception as e:
+            logger.error("AI correction failed: %s", str(e))
             return {
                 "is_correct": False,
-                "feedback": f"AI error: {str(e)}",
                 "correction": sentence,
-                "error": str(e)
+                "feedback": f"Error: {str(e)}"
+            }
+
+    async def _get_ai_correction(self, word: str, sentence: str) -> str:
+        messages = [{
+            "role": "system",
+            "content": "You are an English teacher. Correct sentences concisely."
+        }, {
+            "role": "user",
+            "content": f"Correct this using '{word}': '{sentence}'. Return JSON with: is_correct, correction, explanation"
+        }]
+
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            response_format={"type": "json_object"}
+        )
+        return response.choices[0].message.content
+
+    def _parse_response(self, response: str, original: str) -> dict:
+        try:
+            data = json.loads(response)
+            return {
+                "is_correct": data.get("is_correct", False),
+                "correction": data.get("correction", original),
+                "feedback": data.get("explanation", "No feedback")
+            }
+        except json.JSONDecodeError:
+            return {
+                "is_correct": False,
+                "correction": original,
+                "feedback": "Invalid response format"
             }
