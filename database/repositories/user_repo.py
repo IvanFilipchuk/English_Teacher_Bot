@@ -18,3 +18,6 @@ class UserRepository:
             self.db.commit()
             self.db.refresh(user)
         return user
+
+    def get(self, user_id):
+        return self.db.query(User).filter(User.id == user_id).first()
