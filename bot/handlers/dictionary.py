@@ -10,21 +10,29 @@ class DictionaryHandlers:
         if not update.message:
             return
 
-        if len(context.args) < 2:
+        if not context.args:
             await update.message.reply_text(
-                "📝 *How to add a word:*\n\n"
-                "`/addword <english_word> <translation> [synonym] [example]`\n\n"
+                "📝 *How to add a word:*\n"
+                "`/add_word word | translation | synonym | example`\n\n"
                 "✨ *Example:*\n"
-                "`/addword apple jabłko fruit \"An apple a day keeps the doctor away\"`",
+                "`/add_word cost-efficient | економічно ефективний | economical | We need a cost-efficient solution`",
                 parse_mode="Markdown"
             )
             return
 
+        full_text = " ".join(context.args)
+        parts = full_text.split(" | ")
+
+        if len(parts) < 2:
+            await update.message.reply_text("❌ Please provide at least a word and its translation.",
+                                            parse_mode="Markdown")
+            return
+
         word_data = {
-            'word': context.args[0],
-            'translation': context.args[1],
-            'synonym': context.args[2] if len(context.args) > 2 else None,
-            'example_usage': ' '.join(context.args[3:]) if len(context.args) > 3 else None
+            'word': parts[0].strip(),
+            'translation': parts[1].strip(),
+            'synonym': parts[2].strip() if len(parts) > 2 else None,
+            'example_usage': parts[3].strip() if len(parts) > 3 else None
         }
 
         db = next(get_db())
