@@ -67,8 +67,24 @@ class PracticeService:
 
     def get_random_word(self, user_id):
         db = next(get_db())
-        words = WordRepository(db).get_user_words(user_id)
-        logger.info(f"Retrieved words for user {user_id}: {words}")
-        if words:
-            return random.choice(words)
-        return None
+        try:
+            words = WordRepository(db).get_user_words(user_id)
+            if not words:
+                return None
+
+            recent_sessions = db.query(PracticeSession.word_id) \
+                .filter(PracticeSession.user_id == user_id) \
+                .order_by(PracticeSession.created_at.desc()) \
+                .limit(5) \
+                .all()
+
+            recent_word_ids = {session.word_id for session in recent_sessions}
+
+            available_words = [word for word in words if word.id not in recent_word_ids]
+
+            if available_words:
+                return random.choice(available_words)
+            else:
+                return random.choice(words)
+        finally:
+            db.close()

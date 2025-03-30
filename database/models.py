@@ -41,9 +41,10 @@ class UserSettings(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True)
-    practice_interval = Column(Integer, default=60)  # w minutach
+    practice_interval = Column(Integer, default=60)
     last_practice_time = Column(DateTime)
     notifications_enabled = Column(Boolean, default=True)
+    last_word_id = Column(Integer, ForeignKey("words.id"), nullable=True)
 
     user = relationship("User", back_populates="settings")
 
