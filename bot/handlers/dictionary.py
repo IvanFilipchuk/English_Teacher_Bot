@@ -72,12 +72,29 @@ class DictionaryHandlers:
                 )
                 return
 
-            response = "📚 *Your Vocabulary*\n\n"
+            response_lines = ["📚 *Your Vocabulary*"]
             for word in words:
-                response += f"🔹 #{word.id} *{word.word}* - {word.translation}\n"
+                response_lines.append(f"🔹 #{word.id} *{word.word}* - {word.translation}")
 
-            response += "\nℹ️ Use `/word <id>` to see details\nExample: `/word 1`"
-            await update.message.reply_text(response, parse_mode="Markdown")
+            response_lines.append("\nℹ️ Use `/word <id>` to see details\nExample: `/word 1`")
+
+            max_message_length = 4096
+            chunks = []
+            current_chunk = ""
+
+            for line in response_lines:
+                if len(current_chunk) + len(line) + 1 <= max_message_length:
+                    current_chunk += line + "\n"
+                else:
+                    chunks.append(current_chunk.strip())
+                    current_chunk = line + "\n"
+
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+
+            for chunk in chunks:
+                await update.message.reply_text(chunk, parse_mode="Markdown")
+
         except Exception as e:
             await update.message.reply_text(f"❌ *Error:* {str(e)}", parse_mode="Markdown")
         finally:
