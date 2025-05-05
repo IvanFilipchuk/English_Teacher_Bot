@@ -18,6 +18,9 @@ class User(Base):
     words = relationship("Word", back_populates="user")
     settings = relationship("UserSettings", back_populates="user", uselist=False)
     practice_sessions = relationship("PracticeSession", back_populates="user")
+    statistics = relationship("UserStatistics", back_populates="user")
+    students = relationship("TeacherStudent", foreign_keys="TeacherStudent.teacher_id", back_populates="teacher")
+    teachers = relationship("TeacherStudent", foreign_keys="TeacherStudent.student_id", back_populates="student")
 class Word(Base):
     __tablename__ = "words"
 
@@ -61,3 +64,25 @@ class PracticeSession(Base):
 
     user = relationship("User", back_populates="practice_sessions")
     word = relationship("Word", back_populates="practice_sessions")
+
+class UserStatistics(Base):
+    __tablename__ = "user_statistics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    date = Column(DateTime, nullable=False, default=datetime.utcnow)
+    words_added = Column(Integer, default=0)
+    correct_sentences = Column(Integer, default=0)
+    total_sentences = Column(Integer, default=0)
+
+    user = relationship("User", back_populates="statistics")
+
+class TeacherStudent(Base):
+    __tablename__ = "teacher_students"
+
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_id = Column(Integer, ForeignKey("users.id"))
+    student_id = Column(Integer, ForeignKey("users.id"))
+
+    teacher = relationship("User", foreign_keys=[teacher_id], back_populates="students")
+    student = relationship("User", foreign_keys=[student_id], back_populates="teachers")
