@@ -2,6 +2,7 @@ import logging
 from telegram.ext import ApplicationBuilder
 from config.config import Config
 from bot.handlers import base, dictionary, practice
+from bot.handlers.teacher_handlers import TeacherHandlers
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,6 +26,8 @@ def main():
 
         base.BaseHandlers.register_handlers(application)
         dictionary.DictionaryHandlers.register_handlers(application)
+
+        TeacherHandlers.register_handlers(application)
 
         practice_handler = practice.PracticeHandlers(application)
         practice_handler.register_handlers()
